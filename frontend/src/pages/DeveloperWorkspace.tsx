@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import {
   api,
@@ -182,6 +183,9 @@ export default function DeveloperWorkspace() {
           >
             Submit story
           </button>
+          <Link to="/admin" style={{ textDecoration: "none" }}>
+            <button className="ghost">Admin Console →</button>
+          </Link>
           <button className="ghost" onClick={signOut}>
             Sign out
           </button>
@@ -198,7 +202,12 @@ export default function DeveloperWorkspace() {
         <aside className="sidebar">
           <h4 className="sidebar-title">Files in scope</h4>
           {tree.length === 0 ? (
-            <p className="muted small">No files scoped to this story yet.</p>
+            <div style={{ padding: "8px 0" }}>
+              <p className="muted small">No files scoped to this story yet.</p>
+              <Link to="/admin" style={{ fontSize: "11px", color: "var(--accent)" }}>
+                Go to Admin to scope files →
+              </Link>
+            </div>
           ) : (
             <FileTree
               nodes={tree}
@@ -250,7 +259,8 @@ export default function DeveloperWorkspace() {
             stale={session?.stale ?? false}
           />
           <AiPanel
-            disabled={!file || readOnly}
+            isFileOpen={!!file}
+            isReadOnly={readOnly}
             byokConfigured={session?.byok_configured ?? false}
             lastRoute={route}
             blocked={blocked}

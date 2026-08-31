@@ -20,7 +20,7 @@ from app.errors import Blocked, Forbidden
 from app.models import Story
 from app.vfs.resolver import Classification, VfsResolver, normalize
 
-DEFAULT_MODELS = {"anthropic": "claude-sonnet-4-5", "openai": "gpt-4.1"}
+DEFAULT_MODELS = {"anthropic": "claude-3-5-sonnet-latest", "openai": "gpt-4o"}
 
 _TRIVIAL_HINTS = (
     "rename",

@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 type Props = {
-  disabled: boolean;
+  isFileOpen: boolean;
+  isReadOnly: boolean;
   byokConfigured: boolean;
   onConfigureByok: (provider: string, key: string) => Promise<void>;
   onSubmit: (instruction: string) => Promise<void>;
@@ -10,7 +11,8 @@ type Props = {
 };
 
 export default function AiPanel({
-  disabled,
+  isFileOpen,
+  isReadOnly,
   byokConfigured,
   onConfigureByok,
   onSubmit,
@@ -18,7 +20,7 @@ export default function AiPanel({
   blocked,
 }: Props) {
   const [instruction, setInstruction] = useState("");
-  const [provider, setProvider] = useState("anthropic");
+  const [provider, setProvider] = useState("openai");
   const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,8 +39,8 @@ export default function AiPanel({
           value={provider}
           onChange={(e) => setProvider(e.target.value)}
         >
-          <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
           <option value="openai">OpenAI (GPT-4o)</option>
+          <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
         </select>
         <label htmlFor="key">API key</label>
         <input
@@ -81,15 +83,25 @@ export default function AiPanel({
   return (
     <div className="panel">
       <h3>Ask for a change</h3>
+      {!isFileOpen ? (
+        <div style={{ background: "var(--canvas)", padding: "10px", borderRadius: "6px", border: "1px dashed var(--border)", marginBottom: "10px", fontSize: "12px", color: "var(--text-muted)" }}>
+          👈 <strong>Select a file</strong> from the left sidebar to generate an AI edit for that file.
+        </div>
+      ) : isReadOnly ? (
+        <div style={{ background: "var(--canvas)", padding: "10px", borderRadius: "6px", border: "1px dashed var(--border)", marginBottom: "10px", fontSize: "12px", color: "var(--text-muted)" }}>
+          🔒 <strong>Read-Only File</strong>: You have read-only scope for this file. Request write access to generate diffs.
+        </div>
+      ) : null}
+
       <textarea
         rows={5}
         value={instruction}
-        disabled={disabled}
+        disabled={!isFileOpen || isReadOnly || busy}
         onChange={(e) => setInstruction(e.target.value)}
-        placeholder="Add a remember-me checkbox below the password field"
+        placeholder={isFileOpen ? "Describe the code changes you want to apply to this file..." : "Select an in-scope file on the left first..."}
       />
       <button
-        disabled={disabled || busy || !instruction.trim()}
+        disabled={!isFileOpen || isReadOnly || busy || !instruction.trim()}
         onClick={async () => {
           setBusy(true);
           try {
@@ -99,7 +111,7 @@ export default function AiPanel({
           }
         }}
       >
-        {busy ? "Generating..." : "Generate diff"}
+        {busy ? "Analyzing & generating diff..." : "Generate diff"}
       </button>
 
       {blocked && (
