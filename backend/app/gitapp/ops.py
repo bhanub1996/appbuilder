@@ -27,7 +27,7 @@ async def _client(installation_id: int) -> httpx.AsyncClient:
     )
 
 
-async def list_paths(installation_id: int, full_name: str, ref: str) -> list[str]:
+async def list_paths(installation_id: int, full_name: str, ref: str, token: str = "") -> list[str]:
     """Full recursive path list. ADMIN-ONLY output -- must be filtered by the
     resolver before any developer sees it."""
     if installation_id and settings.github_app_id:
@@ -42,20 +42,25 @@ async def list_paths(installation_id: int, full_name: str, ref: str) -> list[str
         except Exception:
             pass
 
-    # Public GitHub API fallback
+    # Direct GitHub API fallback (authenticated if token provided)
+    auth_token = token or settings.github_token
     try:
+        headers = {"User-Agent": "AppBuilder/1.0", "Accept": "application/vnd.github+json"}
+        if auth_token:
+            headers["Authorization"] = f"Bearer {auth_token}"
+
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.get(
                 f"{settings.github_api_base}/repos/{full_name}/git/trees/{ref}",
                 params={"recursive": "1"},
-                headers={"User-Agent": "AppBuilder/1.0", "Accept": "application/vnd.github+json"},
+                headers=headers,
             )
             if resp.status_code == 404:
                 alt_ref = "main" if ref == "dev" else "dev"
                 resp = await client.get(
                     f"{settings.github_api_base}/repos/{full_name}/git/trees/{alt_ref}",
                     params={"recursive": "1"},
-                    headers={"User-Agent": "AppBuilder/1.0", "Accept": "application/vnd.github+json"},
+                    headers=headers,
                 )
             if resp.status_code < 300:
                 data = resp.json()
@@ -69,7 +74,7 @@ async def list_paths(installation_id: int, full_name: str, ref: str) -> list[str
     return _demo_paths()
 
 
-async def read_file(installation_id: int, full_name: str, ref: str, path: str) -> dict:
+async def read_file(installation_id: int, full_name: str, ref: str, path: str, token: str = "") -> dict:
     if installation_id and settings.github_app_id:
         try:
             async with await _client(installation_id) as client:
@@ -82,20 +87,25 @@ async def read_file(installation_id: int, full_name: str, ref: str, path: str) -
         except Exception:
             pass
 
-    # Public GitHub API fallback
+    # Direct GitHub API fallback
+    auth_token = token or settings.github_token
     try:
+        headers = {"User-Agent": "AppBuilder/1.0", "Accept": "application/vnd.github+json"}
+        if auth_token:
+            headers["Authorization"] = f"Bearer {auth_token}"
+
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.get(
                 f"{settings.github_api_base}/repos/{full_name}/contents/{path}",
                 params={"ref": ref},
-                headers={"User-Agent": "AppBuilder/1.0", "Accept": "application/vnd.github+json"},
+                headers=headers,
             )
             if resp.status_code == 404:
                 alt_ref = "main" if ref == "dev" else "dev"
                 resp = await client.get(
                     f"{settings.github_api_base}/repos/{full_name}/contents/{path}",
                     params={"ref": alt_ref},
-                    headers={"User-Agent": "AppBuilder/1.0", "Accept": "application/vnd.github+json"},
+                    headers=headers,
                 )
             if resp.status_code < 300:
                 data = resp.json()

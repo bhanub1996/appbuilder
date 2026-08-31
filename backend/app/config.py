@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     github_app_private_key: str = ""
     github_app_private_key_b64: str = ""
     github_webhook_secret: str = ""
+    github_token: str = ""
     github_api_base: str = "https://api.github.com"
 
     local_llm_base_url: str = ""

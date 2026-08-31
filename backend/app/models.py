@@ -23,6 +23,7 @@ class Repository:
     full_name: str
     installation_id: int
     default_base_branch: str = "dev"
+    token: str = ""
     classifications: list[tuple[str, str]] = field(default_factory=list)
 
 

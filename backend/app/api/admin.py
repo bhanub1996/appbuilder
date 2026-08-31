@@ -14,8 +14,9 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 class RepoIn(BaseModel):
     full_name: str = Field(min_length=1, max_length=150)
-    installation_id: int
-    default_base_branch: str = "dev"
+    installation_id: int = 0
+    default_base_branch: str = "main"
+    token: str = ""
 
 
 @router.get("/repos")
@@ -40,6 +41,7 @@ async def onboard_repo(body: RepoIn, admin: Principal = Depends(require_admin)):
         full_name=body.full_name,
         installation_id=body.installation_id,
         default_base_branch=body.default_base_branch,
+        token=body.token,
     )
     await audit.record(
         action="repo.onboard",
@@ -75,12 +77,8 @@ async def repo_paths(repo_id: str, ref: str = "dev", admin: Principal = Depends(
     repo = await store.repo(repo_id)
     if not repo:
         raise NotFound()
-    if not repo.installation_id or not settings.github_app_id:
-        from app.api.vfs import _demo_paths
-
-        return {"paths": _demo_paths()}
     try:
-        return {"paths": await ops.list_paths(repo.installation_id, repo.full_name, ref)}
+        return {"paths": await ops.list_paths(repo.installation_id, repo.full_name, ref, token=repo.token)}
     except Exception:
         from app.api.vfs import _demo_paths
 

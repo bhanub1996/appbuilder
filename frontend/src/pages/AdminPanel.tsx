@@ -119,6 +119,7 @@ export default function AdminPanel() {
   const [newName, setNewName] = useState("");
   const [newInstallationId, setNewInstallationId] = useState("");
   const [newBaseBranch, setNewBaseBranch] = useState("main");
+  const [newToken, setNewToken] = useState("");
 
   // Create Story form
   const [showCreateStory, setShowCreateStory] = useState(false);
@@ -209,12 +210,14 @@ export default function AdminPanel() {
         full_name: newName,
         installation_id: parseInt(newInstallationId, 10) || 0,
         default_base_branch: newBaseBranch || "main",
+        token: newToken,
       });
       setRepos([...repos, newRepo]);
       setSelectedRepoId(newRepo.id);
       setNewName("");
       setNewInstallationId("");
       setNewBaseBranch("main");
+      setNewToken("");
       setShowOnboard(false);
       setNotice("Project successfully onboarded!");
     } catch {
@@ -378,6 +381,14 @@ export default function AdminPanel() {
                       value={newBaseBranch}
                       onChange={(e) => setNewBaseBranch(e.target.value)}
                       placeholder="main"
+                    />
+                  </label>
+                  <label>GitHub Token (optional, for private repos)
+                    <input
+                      type="password"
+                      value={newToken}
+                      onChange={(e) => setNewToken(e.target.value)}
+                      placeholder="ghp_... or github_pat_..."
                     />
                   </label>
                   <button type="submit" style={{ width: "100%", marginTop: "6px" }}>
