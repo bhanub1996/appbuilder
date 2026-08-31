@@ -23,10 +23,13 @@ class SaveIn(BaseModel):
 async def get_tree(session_id: str, principal: Principal = Depends(current_principal)):
     ctx = await load_session_context(session_id, principal)
 
-    if ctx.installation_id:
-        all_paths = await ops.list_paths(
-            ctx.installation_id, ctx.repo_full_name, ctx.session.feature_branch
-        )
+    if ctx.installation_id and settings.github_app_id:
+        try:
+            all_paths = await ops.list_paths(
+                ctx.installation_id, ctx.repo_full_name, ctx.session.feature_branch
+            )
+        except Exception:
+            all_paths = _demo_paths()
     else:
         all_paths = _demo_paths()
 

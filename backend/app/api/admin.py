@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.api.deps import Principal, require_admin
+from app.config import settings
 from app.core import audit
 from app.errors import NotFound
 from app.gitapp import ops
@@ -74,11 +75,16 @@ async def repo_paths(repo_id: str, ref: str = "dev", admin: Principal = Depends(
     repo = await store.repo(repo_id)
     if not repo:
         raise NotFound()
-    if not repo.installation_id:
+    if not repo.installation_id or not settings.github_app_id:
         from app.api.vfs import _demo_paths
 
         return {"paths": _demo_paths()}
-    return {"paths": await ops.list_paths(repo.installation_id, repo.full_name, ref)}
+    try:
+        return {"paths": await ops.list_paths(repo.installation_id, repo.full_name, ref)}
+    except Exception:
+        from app.api.vfs import _demo_paths
+
+        return {"paths": _demo_paths()}
 
 
 @router.get("/stories")
