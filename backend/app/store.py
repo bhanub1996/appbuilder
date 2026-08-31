@@ -121,6 +121,27 @@ class MemoryStore:
     async def repo(self, repo_id: str) -> Repository | None:
         return self.repos.get(repo_id)
 
+    async def repos_list(self) -> list[Repository]:
+        return list(self.repos.values())
+
+    async def create_repo(self, full_name: str, installation_id: int, default_base_branch: str) -> Repository:
+        repo = Repository(
+            id=str(uuid.uuid4()),
+            full_name=full_name,
+            installation_id=installation_id,
+            default_base_branch=default_base_branch,
+            classifications=[
+                ("infra/*", "SECRET"),
+                ("*.pem", "SECRET"),
+                ("backend/billing/*", "RESTRICTED"),
+                ("backend/*", "RESTRICTED"),
+                ("frontend/*", "INTERNAL"),
+                ("docs/*", "PUBLIC"),
+            ],
+        )
+        self.repos[repo.id] = repo
+        return repo
+
     async def rules_for_repo(self, repo_id: str) -> str:
         return self.global_rules.get(repo_id, "")
 
