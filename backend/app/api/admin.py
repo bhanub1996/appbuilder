@@ -87,6 +87,17 @@ async def repo_paths(repo_id: str, ref: str = "dev", admin: Principal = Depends(
         return {"paths": _demo_paths()}
 
 
+class StoryCreateIn(BaseModel):
+    repo_id: str
+    key: str = Field(min_length=1, max_length=50)
+    title: str = Field(min_length=1, max_length=200)
+    developer_brief: str = ""
+    internal_notes: str = ""
+    acceptance_criteria: list[str] = Field(default_factory=list)
+    base_branch: str = "main"
+    assignee_id: str | None = None
+
+
 @router.get("/stories")
 async def list_stories(admin: Principal = Depends(require_admin)):
     return {
@@ -104,6 +115,62 @@ async def list_stories(admin: Principal = Depends(require_admin)):
                 ],
             }
             for s in store.stories.values()
+        ]
+    }
+
+
+@router.post("/stories")
+async def create_story(body: StoryCreateIn, admin: Principal = Depends(require_admin)):
+    story = await store.create_story(
+        repo_id=body.repo_id,
+        key=body.key,
+        title=body.title,
+        developer_brief=body.developer_brief,
+        internal_notes=body.internal_notes,
+        acceptance_criteria=body.acceptance_criteria,
+        base_branch=body.base_branch,
+        assignee_id=body.assignee_id,
+    )
+    await audit.record(
+        action="story.create",
+        outcome="ok",
+        actor_id=admin.id,
+        story_id=story.id,
+        detail={"key": story.key, "repo_id": story.repo_id},
+    )
+    return {
+        "id": story.id,
+        "key": story.key,
+        "title": story.title,
+        "status": story.status,
+        "repo_id": story.repo_id,
+        "assignee_id": story.assignee_id,
+        "feature_branch": story.feature_branch,
+        "scopes": [],
+    }
+
+
+@router.get("/users")
+async def list_users(admin: Principal = Depends(require_admin)):
+    users = await store.users_list()
+    return {"users": users}
+
+
+@router.get("/elevations")
+async def list_elevations(admin: Principal = Depends(require_admin)):
+    elevations = await store.list_elevations()
+    return {
+        "elevations": [
+            {
+                "id": e.id,
+                "session_id": e.session_id,
+                "pattern": e.pattern,
+                "access": e.access,
+                "reason": e.reason,
+                "status": e.status,
+                "expires_at": e.expires_at.isoformat() if e.expires_at else None,
+            }
+            for e in elevations
         ]
     }
 

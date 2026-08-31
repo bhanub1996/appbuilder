@@ -107,6 +107,9 @@ class MemoryStore:
             }
         return self.users.get(clean)
 
+    async def users_list(self) -> list[dict]:
+        return list(self.users.values())
+
     # --- stories -----------------------------------------------------------
     async def stories_for_developer(self, developer_id: str) -> list[Story]:
         return [
@@ -117,6 +120,34 @@ class MemoryStore:
 
     async def story(self, story_id: str) -> Story | None:
         return self.stories.get(story_id)
+
+    async def create_story(
+        self,
+        repo_id: str,
+        key: str,
+        title: str,
+        developer_brief: str = "",
+        internal_notes: str = "",
+        acceptance_criteria: list[str] | None = None,
+        base_branch: str = "main",
+        assignee_id: str | None = None,
+    ) -> Story:
+        story = Story(
+            id=str(uuid.uuid4()),
+            repo_id=repo_id,
+            key=key,
+            title=title,
+            developer_brief=developer_brief,
+            internal_notes=internal_notes,
+            acceptance_criteria=acceptance_criteria or [],
+            base_branch=base_branch,
+            feature_branch=f"feature/{key.lower()}",
+            status="assigned" if assignee_id else "draft",
+            assignee_id=assignee_id,
+            scopes=[],
+        )
+        self.stories[story.id] = story
+        return story
 
     async def repo(self, repo_id: str) -> Repository | None:
         return self.repos.get(repo_id)
@@ -218,6 +249,9 @@ class MemoryStore:
                 elev.status = "expired"
                 count += 1
         return count
+
+    async def list_elevations(self) -> list[Elevation]:
+        return list(self.elevations.values())
 
     # --- audit -------------------------------------------------------------
     async def last_audit_hash(self) -> str | None:
