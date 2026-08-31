@@ -1,38 +1,31 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "web": {
-      "root": "frontend/",
-      "framework": "vite"
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     },
-    "api": {
-      "root": "backend/",
-      "entrypoint": "main:app"
+    {
+      "src": "backend/main.py",
+      "use": "@vercel/python"
     }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "api" } },
-    { "source": "/(.*)", "destination": { "service": "web" } }
+  ],
+  "routes": [
+    { 
+      "src": "/api/(.*)", 
+      "dest": "/backend/main.py", 
+      "headers": { 
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" 
+      } 
+    },
+    { "src": "/(.*)", "dest": "/frontend/$1", "check": true },
+    { "src": "/(.*)", "dest": "/frontend/index.html" }
   ],
   "crons": [
     { "path": "/api/internal/cron/expire-elevations", "schedule": "0 0 * * *" },
     { "path": "/api/internal/cron/reconcile-index", "schedule": "0 2 * * *" }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "no-referrer" },
-        { "key": "Permissions-Policy", "value": "clipboard-write=(), geolocation=()" }
-      ]
-    },
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store, max-age=0" }
-      ]
-    }
   ]
 }
