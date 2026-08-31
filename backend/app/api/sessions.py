@@ -35,7 +35,9 @@ def _serialize(session, stale: bool = False) -> dict:
 @router.post("/sessions")
 async def open_session(body: OpenSessionIn, principal: Principal = Depends(current_principal)):
     story = await store.story(body.story_id)
-    if not story or story.assignee_id != principal.id:
+    if not story:
+        raise NotFound("story_not_found")
+    if story.assignee_id and story.assignee_id != principal.id and principal.role != "admin":
         raise NotFound("story_not_found")
 
     existing = await store.active_session_for(principal.id, story.id)
@@ -69,7 +71,7 @@ async def submit_byok(
     session_id: str, body: ByokIn, principal: Principal = Depends(current_principal)
 ):
     ctx = await load_session_context(session_id, principal)
-    if ctx.session.developer_id != principal.id:
+    if ctx.session.developer_id != principal.id and principal.role != "admin":
         raise Forbidden()
 
     # The key must never outlive the session that justified it.

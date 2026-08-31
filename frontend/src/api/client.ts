@@ -1,9 +1,6 @@
 const BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
-let accessToken: string | null = sessionStorage.getItem("at");
-
 export function setAccessToken(token: string | null) {
-  accessToken = token;
   if (token) sessionStorage.setItem("at", token);
   else sessionStorage.removeItem("at");
 }
@@ -18,21 +15,26 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = sessionStorage.getItem("at");
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers ?? {}),
     },
   });
 
   if (res.status === 204) return undefined as T;
 
+  if (res.status === 401 && !path.includes("/auth/login")) {
+    setAccessToken(null);
+    throw new ApiError(401, "Your session expired. Please sign in again.");
+  }
+
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    // The server deliberately returns opaque codes. Do not try to infer more.
-    throw new ApiError(res.status, body.error ?? "request_failed");
+    throw new ApiError(res.status, body.error ?? body.detail ?? "request_failed");
   }
   return body as T;
 }

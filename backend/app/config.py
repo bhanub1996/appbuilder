@@ -11,8 +11,8 @@ class Settings(BaseSettings):
 
     jwt_secret: str = "dev-only-insecure-secret-change-me-now"
     jwt_issuer: str = "ztdev"
-    access_token_ttl_seconds: int = 900
-    session_ttl_seconds: int = 28800
+    access_token_ttl_seconds: int = 604800  # 7 days
+    session_ttl_seconds: int = 604800  # 7 days
 
     database_url: str = ""
     upstash_redis_rest_url: str = ""
