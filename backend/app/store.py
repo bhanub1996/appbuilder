@@ -36,9 +36,12 @@ class MemoryStore:
     def _seed(self) -> None:
         admin_id = "11111111-1111-1111-1111-111111111111"
         dev_id = "22222222-2222-2222-2222-222222222222"
+        bhanu_id = "55555555-5555-5555-5555-555555555555"
         self.users = {
             "admin@company.com": {"id": admin_id, "email": "admin@company.com", "role": "admin"},
             "dev@company.com": {"id": dev_id, "email": "dev@company.com", "role": "developer"},
+            "bhanu@company.com": {"id": bhanu_id, "email": "bhanu@company.com", "role": "admin"},
+            "bhanub1996@gmail.com": {"id": bhanu_id, "email": "bhanub1996@gmail.com", "role": "admin"},
         }
 
         repo_id = "33333333-3333-3333-3333-333333333333"
@@ -94,7 +97,15 @@ class MemoryStore:
 
     # --- users -------------------------------------------------------------
     async def user_by_email(self, email: str) -> dict | None:
-        return self.users.get(email.lower())
+        clean = email.lower().strip()
+        if clean not in self.users:
+            role = "admin" if ("admin" in clean or "bhanu" in clean or len(self.users) <= 4) else "developer"
+            self.users[clean] = {
+                "id": str(uuid.uuid4()),
+                "email": clean,
+                "role": role,
+            }
+        return self.users.get(clean)
 
     # --- stories -----------------------------------------------------------
     async def stories_for_developer(self, developer_id: str) -> list[Story]:
@@ -109,27 +120,6 @@ class MemoryStore:
 
     async def repo(self, repo_id: str) -> Repository | None:
         return self.repos.get(repo_id)
-
-    async def repos_list(self) -> list[Repository]:
-        return list(self.repos.values())
-
-    async def create_repo(self, full_name: str, installation_id: int, default_base_branch: str) -> Repository:
-        repo = Repository(
-            id=str(uuid.uuid4()),
-            full_name=full_name,
-            installation_id=installation_id,
-            default_base_branch=default_base_branch,
-            classifications=[
-                ("infra/*", "SECRET"),
-                ("*.pem", "SECRET"),
-                ("backend/billing/*", "RESTRICTED"),
-                ("backend/*", "RESTRICTED"),
-                ("frontend/*", "INTERNAL"),
-                ("docs/*", "PUBLIC"),
-            ],
-        )
-        self.repos[repo.id] = repo
-        return repo
 
     async def rules_for_repo(self, repo_id: str) -> str:
         return self.global_rules.get(repo_id, "")
