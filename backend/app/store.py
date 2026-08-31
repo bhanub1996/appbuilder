@@ -47,9 +47,25 @@ class MemoryStore:
         repo_id = "33333333-3333-3333-3333-333333333333"
         self.repos[repo_id] = Repository(
             id=repo_id,
-            full_name="acme/storefront",
+            full_name="bhanub1996/appbuilder",
             installation_id=0,
-            default_base_branch="dev",
+            default_base_branch="main",
+            classifications=[
+                ("infra/*", "SECRET"),
+                ("*.pem", "SECRET"),
+                ("backend/billing/*", "RESTRICTED"),
+                ("backend/*", "RESTRICTED"),
+                ("frontend/*", "INTERNAL"),
+                ("docs/*", "PUBLIC"),
+            ],
+        )
+
+        navy_id = "44444444-4444-4444-4444-444444444444"
+        self.repos[navy_id] = Repository(
+            id=navy_id,
+            full_name="bhanub1996/navyadhatri",
+            installation_id=0,
+            default_base_branch="main",
             classifications=[
                 ("infra/*", "SECRET"),
                 ("*.pem", "SECRET"),
