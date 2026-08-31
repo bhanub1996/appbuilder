@@ -71,14 +71,15 @@ class ScopesIn(BaseModel):
 
 
 @router.get("/repos/{repo_id}/paths")
-async def repo_paths(repo_id: str, ref: str = "dev", admin: Principal = Depends(require_admin)):
+async def repo_paths(repo_id: str, ref: str | None = None, admin: Principal = Depends(require_admin)):
     """Full repo listing. Admin-only by construction -- this is the endpoint the
     scope picker uses, and the one thing a developer must never reach."""
     repo = await store.repo(repo_id)
     if not repo:
         raise NotFound()
+    target_ref = ref or repo.default_base_branch or "main"
     try:
-        return {"paths": await ops.list_paths(repo.installation_id, repo.full_name, ref, token=repo.token)}
+        return {"paths": await ops.list_paths(repo.installation_id, repo.full_name, target_ref, token=repo.token)}
     except Exception:
         from app.api.vfs import _demo_paths
 
