@@ -15,7 +15,7 @@
     { "source": "/(.*)", "destination": { "service": "web" } }
   ],
   "crons": [
-    { "path": "/api/internal/cron/expire-elevations", "schedule": "*/10 * * * *" },
+    { "path": "/api/internal/cron/expire-elevations", "schedule": "0 0 * * *" },
     { "path": "/api/internal/cron/reconcile-index", "schedule": "0 2 * * *" }
   ],
   "headers": [
