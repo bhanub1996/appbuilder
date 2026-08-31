@@ -1,0 +1,15 @@
+{
+  "name": "ztdev",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Zero-Trust AI Development UI - scoped VFS editor with BYOK LLM proxy",
+  "workspaces": ["frontend"],
+  "scripts": {
+    "dev": "echo 'Run: (1) npm --workspace frontend run dev  (2) cd backend && uvicorn main:app --reload'",
+    "dev:web": "npm --workspace frontend run dev",
+    "build": "npm --workspace frontend run build",
+    "lint": "npm --workspace frontend run lint",
+    "test:api": "cd backend && python -m pytest -q"
+  },
+  "engines": { "node": ">=20" }
+}
