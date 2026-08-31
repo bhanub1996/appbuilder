@@ -21,6 +21,7 @@ export default function AiPanel({
   const [provider, setProvider] = useState("anthropic");
   const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!byokConfigured) {
     return (
@@ -36,8 +37,8 @@ export default function AiPanel({
           value={provider}
           onChange={(e) => setProvider(e.target.value)}
         >
-          <option value="anthropic">Anthropic</option>
-          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
+          <option value="openai">OpenAI (GPT-4o)</option>
         </select>
         <label htmlFor="key">API key</label>
         <input
@@ -45,22 +46,33 @@ export default function AiPanel({
           type="password"
           autoComplete="off"
           value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Paste key"
+          onChange={(e) => {
+            setApiKey(e.target.value);
+            setError(null);
+          }}
+          placeholder="sk-..."
         />
+        {error && (
+          <p style={{ color: "#ef4444", fontSize: "12px", margin: "4px 0" }}>
+            {error}
+          </p>
+        )}
         <button
           disabled={!apiKey || busy}
           onClick={async () => {
             setBusy(true);
+            setError(null);
             try {
-              await onConfigureByok(provider, apiKey);
+              await onConfigureByok(provider, apiKey.trim());
               setApiKey("");
+            } catch (err: any) {
+              setError(err?.code || err?.message || "Failed to connect key. Please verify.");
             } finally {
               setBusy(false);
             }
           }}
         >
-          Store for this session
+          {busy ? "Storing key..." : "Store for this session"}
         </button>
       </div>
     );
