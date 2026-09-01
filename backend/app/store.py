@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from app.config import settings
-from app.models import ACCESS_READ, ACCESS_WRITE, AppLlmConfig, DevSession, Elevation, Grant, Repository, Story
+from app.models import ACCESS_READ, ACCESS_WRITE, AppLlmConfig, DevSession, Elevation, Grant, ProjectContext, Repository, Story
 
 
 def _now() -> datetime:
@@ -26,6 +26,7 @@ class MemoryStore:
     def __init__(self) -> None:
         self.users: dict[str, dict] = {}
         self.repos: dict[str, Repository] = {}
+        self.project_contexts: dict[str, ProjectContext] = {}
         self.stories: dict[str, Story] = {}
         self.sessions: dict[str, DevSession] = {}
         self.elevations: dict[str, Elevation] = {}
@@ -205,6 +206,14 @@ class MemoryStore:
 
     async def rules_for_repo(self, repo_id: str) -> str:
         return self.global_rules.get(repo_id, "")
+
+    async def get_project_context(self, repo_id: str) -> ProjectContext:
+        if repo_id not in self.project_contexts:
+            self.project_contexts[repo_id] = ProjectContext(repo_id=repo_id)
+        return self.project_contexts[repo_id]
+
+    async def save_project_context(self, context: ProjectContext) -> None:
+        self.project_contexts[context.repo_id] = context
 
     # --- sessions ----------------------------------------------------------
     async def active_session_for(self, developer_id: str, story_id: str) -> DevSession | None:

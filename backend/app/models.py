@@ -28,6 +28,16 @@ class Repository:
 
 
 @dataclass
+class ProjectContext:
+    repo_id: str
+    description: str = ""
+    architecture: str = ""
+    tech_stack: str = ""
+    setup_instructions: str = ""
+    env_mapping: str = ""
+
+
+@dataclass
 class Story:
     id: str
     repo_id: str

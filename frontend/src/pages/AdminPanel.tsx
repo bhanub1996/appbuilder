@@ -93,7 +93,7 @@ async function patchElevation(id: string, decision: "approve" | "deny", ttlHours
 
 export default function AdminPanel() {
   const { signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<"scopes" | "elevations" | "audit" | "llm">("scopes");
+  const [activeTab, setActiveTab] = useState<"scopes" | "elevations" | "audit" | "llm" | "context">("scopes");
 
   // Repos & Stories
   const [repos, setRepos] = useState<
@@ -143,6 +143,14 @@ export default function AdminPanel() {
   // Auto-Scoping state
   const [autoScoping, setAutoScoping] = useState(false);
   const [scopeReasoning, setScopeReasoning] = useState<string | null>(null);
+
+  // Project Context state
+  const [contextDesc, setContextDesc] = useState("");
+  const [contextArch, setContextArch] = useState("");
+  const [contextStack, setContextStack] = useState("");
+  const [contextSetup, setContextSetup] = useState("");
+  const [contextEnv, setContextEnv] = useState("");
+  const [savingContext, setSavingContext] = useState(false);
 
   const refreshRepos = () => {
     adminGet<{ repos: any[] }>("/repos")
@@ -220,6 +228,23 @@ export default function AdminPanel() {
     adminGet<{ paths: string[] }>(`/repos/${selectedRepoId}/paths`)
       .then((r) => setPaths(r.paths))
       .catch(() => setNotice("Failed to load repository paths."));
+
+    adminGet<{
+      repo_id: string;
+      description: string;
+      architecture: string;
+      tech_stack: string;
+      setup_instructions: string;
+      env_mapping: string;
+    }>(`/repos/${selectedRepoId}/context`)
+      .then((ctx) => {
+        setContextDesc(ctx.description);
+        setContextArch(ctx.architecture);
+        setContextStack(ctx.tech_stack);
+        setContextSetup(ctx.setup_instructions);
+        setContextEnv(ctx.env_mapping);
+      })
+      .catch(() => setNotice("Failed to load project context."));
   }, [selectedRepoId]);
 
   useEffect(() => {
@@ -369,6 +394,26 @@ export default function AdminPanel() {
     }
   };
 
+  const handleSaveContext = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRepoId) return;
+    setSavingContext(true);
+    try {
+      await adminPut(`/repos/${selectedRepoId}/context`, {
+        description: contextDesc,
+        architecture: contextArch,
+        tech_stack: contextStack,
+        setup_instructions: contextSetup,
+        env_mapping: contextEnv,
+      });
+      setNotice("Project Context saved successfully!");
+    } catch {
+      setNotice("Failed to save project context.");
+    } finally {
+      setSavingContext(false);
+    }
+  };
+
   const visible = paths.filter((p) =>
     p.toLowerCase().includes(filter.toLowerCase()),
   );
@@ -403,6 +448,12 @@ export default function AdminPanel() {
               onClick={() => setActiveTab("audit")}
             >
               Audit Explorer
+            </button>
+            <button
+              className={activeTab === "context" ? "small" : "ghost small"}
+              onClick={() => setActiveTab("context")}
+            >
+              📖 Project Context
             </button>
           </div>
         </div>
@@ -927,6 +978,103 @@ export default function AdminPanel() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {activeTab === "context" && (
+        <div style={{ padding: "20px", overflowY: "auto", display: "flex", gap: "20px" }}>
+          <div style={{ width: "300px", minWidth: "300px" }}>
+            <div className="card">
+              <h3>Select Project</h3>
+              <p className="muted" style={{ marginBottom: "16px" }}>Choose a project to configure its context and knowledge base.</p>
+              <select
+                value={selectedRepoId}
+                onChange={(e) => setSelectedRepoId(e.target.value)}
+                style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)" }}
+              >
+                <option value="">Select Project</option>
+                {repos.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, maxWidth: "800px" }}>
+            {!selectedRepoId ? (
+              <div className="blank-slate" style={{ marginTop: "40px", border: "1px dashed var(--border)", borderRadius: "8px" }}>
+                <div style={{ fontSize: "2rem", marginBottom: "1rem", opacity: 0.5 }}>📖</div>
+                <h3>No Project Selected</h3>
+                <p className="muted">Select a project from the left panel to manage its context.</p>
+              </div>
+            ) : (
+              <div className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <h2>Project Context & Knowledge Base</h2>
+                  <button className="primary" onClick={handleSaveContext} disabled={savingContext}>
+                    {savingContext ? "Saving..." : "Save Context"}
+                  </button>
+                </div>
+                <p className="muted" style={{ marginBottom: "24px" }}>
+                  This context is automatically fed into the AI Auto-Scoping engine and AI coding sessions to ensure the agent understands your architecture and rules.
+                </p>
+
+                <form className="form-stack">
+                  <div className="form-group">
+                    <label>Description & Business Goals</label>
+                    <textarea 
+                      placeholder="What is this project? What problem does it solve?" 
+                      rows={3}
+                      value={contextDesc}
+                      onChange={e => setContextDesc(e.target.value)}
+                    ></textarea>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>Architecture & Conventions</label>
+                    <textarea 
+                      placeholder="Describe the high-level architecture, design patterns, and coding conventions (e.g. 'Use Feature Slices', 'Zero-Trust Scoping required')." 
+                      rows={5}
+                      value={contextArch}
+                      onChange={e => setContextArch(e.target.value)}
+                    ></textarea>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Tech Stack</label>
+                    <textarea 
+                      placeholder="e.g. React 18, Vite, FastAPI, PostgreSQL, TailwindCSS" 
+                      rows={2}
+                      value={contextStack}
+                      onChange={e => setContextStack(e.target.value)}
+                    ></textarea>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Local Setup & Run Instructions</label>
+                    <textarea 
+                      placeholder="Commands to start the project (e.g. 'npm run dev', 'uvicorn app.main:app')." 
+                      rows={3}
+                      value={contextSetup}
+                      onChange={e => setContextSetup(e.target.value)}
+                    ></textarea>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Environment Variables Mapping</label>
+                    <textarea 
+                      placeholder="List required env variables and what they do (do NOT paste actual secrets here)." 
+                      rows={3}
+                      value={contextEnv}
+                      onChange={e => setContextEnv(e.target.value)}
+                    ></textarea>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

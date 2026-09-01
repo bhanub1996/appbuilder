@@ -6,7 +6,7 @@ from app.config import settings
 from app.core import audit
 from app.errors import NotFound
 from app.gitapp import ops
-from app.models import AppLlmConfig, Grant
+from app.models import AppLlmConfig, Grant, ProjectContext
 from app.store import store
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -59,6 +59,54 @@ async def onboard_repo(body: RepoIn, admin: Principal = Depends(require_admin)):
         "installation_id": repo.installation_id,
         "default_base_branch": repo.default_base_branch,
     }
+
+
+class ProjectContextIn(BaseModel):
+    description: str = ""
+    architecture: str = ""
+    tech_stack: str = ""
+    setup_instructions: str = ""
+    env_mapping: str = ""
+
+
+@router.get("/repos/{repo_id}/context")
+async def get_project_context(repo_id: str, admin: Principal = Depends(require_admin)):
+    repo = await store.repo(repo_id)
+    if not repo:
+        raise NotFound("repo_not_found")
+    ctx = await store.get_project_context(repo_id)
+    return {
+        "repo_id": ctx.repo_id,
+        "description": ctx.description,
+        "architecture": ctx.architecture,
+        "tech_stack": ctx.tech_stack,
+        "setup_instructions": ctx.setup_instructions,
+        "env_mapping": ctx.env_mapping,
+    }
+
+
+@router.put("/repos/{repo_id}/context")
+async def update_project_context(repo_id: str, body: ProjectContextIn, admin: Principal = Depends(require_admin)):
+    repo = await store.repo(repo_id)
+    if not repo:
+        raise NotFound("repo_not_found")
+    
+    ctx = ProjectContext(
+        repo_id=repo_id,
+        description=body.description,
+        architecture=body.architecture,
+        tech_stack=body.tech_stack,
+        setup_instructions=body.setup_instructions,
+        env_mapping=body.env_mapping,
+    )
+    await store.save_project_context(ctx)
+    await audit.record(
+        action="project_context.update",
+        outcome="ok",
+        actor_id=admin.id,
+        detail={"repo_id": repo_id},
+    )
+    return {"ok": True}
 
 
 class ScopeIn(BaseModel):
