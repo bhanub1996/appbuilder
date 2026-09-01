@@ -18,8 +18,8 @@ class OpenSessionIn(BaseModel):
 
 
 class ByokIn(BaseModel):
-    provider: str = Field(pattern="^(anthropic|openai)$")
-    api_key: str = Field(min_length=20, max_length=400)
+    provider: str = Field(pattern="^(openai|openai-mini|anthropic)$")
+    api_key: str = Field(min_length=1, max_length=200)
 
 
 def _serialize(session, stale: bool = False) -> dict:

@@ -40,6 +40,7 @@ export default function AiPanel({
           onChange={(e) => setProvider(e.target.value)}
         >
           <option value="openai">OpenAI (GPT-4o)</option>
+          <option value="openai-mini">OpenAI (GPT-4o-mini)</option>
           <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
         </select>
         <label htmlFor="key">API key</label>

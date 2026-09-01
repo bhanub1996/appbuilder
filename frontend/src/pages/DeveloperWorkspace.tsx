@@ -122,9 +122,13 @@ export default function DeveloperWorkspace() {
       const res = await api.aiEdit(session.session_id, file.path, instruction);
       setRoute(res.route);
       setProposal({ content: res.proposed_content });
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 422) setBlocked(e.code);
-      else setNotice("The model request failed.");
+    } catch (e: any) {
+      if (e instanceof ApiError && e.status === 422) {
+        setBlocked(e.code);
+      } else {
+        const msg = e instanceof ApiError ? e.code || e.message : e.message || String(e);
+        setNotice(`The model request failed: ${msg}`);
+      }
     }
   }
 
