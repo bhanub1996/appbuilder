@@ -130,4 +130,46 @@ export const api = {
     request<{ pull_request_url: string }>(`/sessions/${sessionId}/submit`, {
       method: "POST",
     }),
+
+  getLlmConfig: () =>
+    request<{
+      provider: string;
+      base_url: string;
+      api_key: string;
+      has_api_key: boolean;
+      model: string;
+      is_active: boolean;
+    }>("/admin/llm-config"),
+
+  updateLlmConfig: (config: {
+    provider: string;
+    base_url: string;
+    api_key: string;
+    model: string;
+    is_active: boolean;
+  }) =>
+    request<{ ok: boolean }>("/admin/llm-config", {
+      method: "POST",
+      body: JSON.stringify(config),
+    }),
+
+  testLlmConfig: (config: {
+    provider: string;
+    base_url: string;
+    api_key: string;
+    model: string;
+    is_active: boolean;
+  }) =>
+    request<{ ok: boolean; message?: string; error?: string }>("/admin/llm-config/test", {
+      method: "POST",
+      body: JSON.stringify(config),
+    }),
+
+  autoScopeStory: (storyId: string) =>
+    request<{
+      scopes: Record<string, "read" | "write">;
+      reasoning: string;
+    }>(`/admin/stories/${storyId}/auto-scope`, {
+      method: "POST",
+    }),
 };

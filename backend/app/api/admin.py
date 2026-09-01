@@ -6,7 +6,7 @@ from app.config import settings
 from app.core import audit
 from app.errors import NotFound
 from app.gitapp import ops
-from app.models import Grant
+from app.models import AppLlmConfig, Grant
 from app.store import store
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -197,3 +197,90 @@ async def set_scopes(
 @router.get("/audit")
 async def audit_tail(limit: int = 100, admin: Principal = Depends(require_admin)):
     return {"events": store.audit[-limit:]}
+
+
+class LlmConfigIn(BaseModel):
+    provider: str = Field(pattern="^(openai|anthropic|local|custom)$")
+    base_url: str = Field(min_length=1, max_length=300)
+    api_key: str = ""
+    model: str = Field(min_length=1, max_length=100)
+    is_active: bool = True
+
+
+@router.get("/llm-config")
+async def get_llm_config(admin: Principal = Depends(require_admin)):
+    cfg = await store.get_llm_config()
+    masked_key = (cfg.api_key[:6] + "..." + cfg.api_key[-4:]) if len(cfg.api_key) > 10 else ("***" if cfg.api_key else "")
+    return {
+        "provider": cfg.provider,
+        "base_url": cfg.base_url,
+        "api_key": masked_key,
+        "has_api_key": bool(cfg.api_key),
+        "model": cfg.model,
+        "is_active": cfg.is_active,
+    }
+
+
+@router.post("/llm-config")
+async def update_llm_config(body: LlmConfigIn, admin: Principal = Depends(require_admin)):
+    current = await store.get_llm_config()
+    api_key = body.api_key if (body.api_key and not body.api_key.startswith("***") and "..." not in body.api_key) else current.api_key
+    new_cfg = AppLlmConfig(
+        provider=body.provider,
+        base_url=body.base_url,
+        api_key=api_key,
+        model=body.model,
+        is_active=body.is_active,
+    )
+    await store.save_llm_config(new_cfg)
+    await audit.record(
+        action="llm_config.update",
+        outcome="ok",
+        actor_id=admin.id,
+        detail={"provider": body.provider, "model": body.model, "is_active": body.is_active},
+    )
+    return {"ok": True}
+
+
+@router.post("/llm-config/test")
+async def test_llm_cfg(body: LlmConfigIn, admin: Principal = Depends(require_admin)):
+    current = await store.get_llm_config()
+    api_key = body.api_key if (body.api_key and not body.api_key.startswith("***") and "..." not in body.api_key) else current.api_key
+    cfg = AppLlmConfig(
+        provider=body.provider,
+        base_url=body.base_url,
+        api_key=api_key,
+        model=body.model,
+        is_active=body.is_active,
+    )
+    from app.core.llm import test_llm_connection
+    return await test_llm_connection(cfg)
+
+
+@router.post("/stories/{story_id}/auto-scope")
+async def auto_scope_story(story_id: str, admin: Principal = Depends(require_admin)):
+    story = await store.story(story_id)
+    if not story:
+        raise NotFound("story_not_found")
+    repo = await store.repo(story.repo_id)
+    if not repo:
+        raise NotFound("repo_not_found")
+
+    from app.core.llm import auto_scope_files
+    ref = repo.default_base_branch or "main"
+    try:
+        paths = await ops.list_paths(repo.installation_id, repo.full_name, ref, token=repo.token)
+    except Exception:
+        from app.api.vfs import _demo_paths
+        paths = _demo_paths()
+
+    cfg = await store.get_llm_config()
+    result = await auto_scope_files(story, paths, cfg)
+    await audit.record(
+        action="story.auto_scope",
+        outcome="ok",
+        actor_id=admin.id,
+        story_id=story_id,
+        detail={"suggested_count": len(result.get("scopes", {}))},
+    )
+    return result

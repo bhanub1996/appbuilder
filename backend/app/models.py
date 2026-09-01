@@ -68,3 +68,12 @@ class Elevation:
     reason: str
     status: str = "pending"
     expires_at: datetime | None = None
+
+
+@dataclass
+class AppLlmConfig:
+    provider: str = "openai"  # openai | anthropic | local | custom
+    base_url: str = "https://api.openai.com/v1"
+    api_key: str = ""
+    model: str = "gpt-4o-mini"
+    is_active: bool = False

@@ -93,7 +93,7 @@ async function patchElevation(id: string, decision: "approve" | "deny", ttlHours
 
 export default function AdminPanel() {
   const { signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<"scopes" | "elevations" | "audit">("scopes");
+  const [activeTab, setActiveTab] = useState<"scopes" | "elevations" | "audit" | "llm">("scopes");
 
   // Repos & Stories
   const [repos, setRepos] = useState<
@@ -128,6 +128,21 @@ export default function AdminPanel() {
   const [storyBrief, setStoryBrief] = useState("");
   const [storyCriteria, setStoryCriteria] = useState("");
   const [storyAssignee, setStoryAssignee] = useState("");
+
+  // LLM Config state
+  const [llmProvider, setLlmProvider] = useState("openai");
+  const [llmBaseUrl, setLlmBaseUrl] = useState("https://api.openai.com/v1");
+  const [llmApiKey, setLlmApiKey] = useState("");
+  const [llmModel, setLlmModel] = useState("gpt-4o-mini");
+  const [llmIsActive, setLlmIsActive] = useState(true);
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [testingLlm, setTestingLlm] = useState(false);
+  const [savingLlm, setSavingLlm] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message?: string; error?: string } | null>(null);
+
+  // Auto-Scoping state
+  const [autoScoping, setAutoScoping] = useState(false);
+  const [scopeReasoning, setScopeReasoning] = useState<string | null>(null);
 
   const refreshRepos = () => {
     adminGet<{ repos: any[] }>("/repos")
@@ -164,8 +179,29 @@ export default function AdminPanel() {
       .catch(() => {});
   };
 
+  const refreshLlmConfig = () => {
+    adminGet<{
+      provider: string;
+      base_url: string;
+      api_key: string;
+      has_api_key: boolean;
+      model: string;
+      is_active: boolean;
+    }>("/llm-config")
+      .then((cfg) => {
+        setLlmProvider(cfg.provider);
+        setLlmBaseUrl(cfg.base_url);
+        setLlmModel(cfg.model);
+        setLlmIsActive(cfg.is_active);
+        setHasApiKey(cfg.has_api_key);
+        setLlmApiKey(cfg.api_key);
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     refreshRepos();
+    refreshLlmConfig();
     adminGet<{ users: User[] }>("/users")
       .then((r) => setUsers(r.users))
       .catch(() => {});
@@ -177,6 +213,7 @@ export default function AdminPanel() {
     setSelected(null);
     setPaths([]);
     setScopes({});
+    setScopeReasoning(null);
 
     refreshStories();
 
@@ -188,6 +225,7 @@ export default function AdminPanel() {
   useEffect(() => {
     if (activeTab === "elevations") refreshElevations();
     if (activeTab === "audit") refreshAudit();
+    if (activeTab === "llm") refreshLlmConfig();
   }, [activeTab]);
 
   useEffect(() => {
@@ -196,6 +234,7 @@ export default function AdminPanel() {
     for (const s of selected.scopes)
       next[s.path_glob] = s.access_level as "read" | "write";
     setScopes(next);
+    setScopeReasoning(null);
   }, [selected]);
 
   const handleOnboard = async (e: React.FormEvent) => {
@@ -255,7 +294,7 @@ export default function AdminPanel() {
       setStoryCriteria("");
       setStoryAssignee("");
       setShowCreateStory(false);
-      setNotice(`Story ${created.key} created! Now assign scoped paths below.`);
+      setNotice(`Story ${created.key} created! Click '🤖 Auto-Scope with AI' or manually assign scoped paths below.`);
     } catch {
       setNotice("Failed to create user story.");
     }
@@ -268,6 +307,65 @@ export default function AdminPanel() {
       setNotice(`Elevation request ${decision}d.`);
     } catch {
       setNotice(`Failed to ${decision} elevation.`);
+    }
+  };
+
+  const handleSaveLlmConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingLlm(true);
+    try {
+      await adminPost("/llm-config", {
+        provider: llmProvider,
+        base_url: llmBaseUrl,
+        api_key: llmApiKey,
+        model: llmModel,
+        is_active: llmIsActive,
+      });
+      setNotice("Application LLM Configuration saved successfully!");
+      refreshLlmConfig();
+    } catch {
+      setNotice("Failed to save LLM configuration.");
+    } finally {
+      setSavingLlm(false);
+    }
+  };
+
+  const handleTestLlmConfig = async () => {
+    setTestingLlm(true);
+    setTestResult(null);
+    try {
+      const res = await adminPost<{ ok: boolean; message?: string; error?: string }>("/llm-config/test", {
+        provider: llmProvider,
+        base_url: llmBaseUrl,
+        api_key: llmApiKey,
+        model: llmModel,
+        is_active: llmIsActive,
+      });
+      setTestResult(res);
+    } catch (err: any) {
+      setTestResult({ ok: false, error: err?.message || "Failed to reach LLM endpoint." });
+    } finally {
+      setTestingLlm(false);
+    }
+  };
+
+  const handleAutoScope = async () => {
+    if (!selected) return;
+    setAutoScoping(true);
+    setScopeReasoning(null);
+    try {
+      const res = await adminPost<{
+        scopes: Record<string, "read" | "write">;
+        reasoning: string;
+      }>(`/stories/${selected.id}/auto-scope`, {});
+
+      setScopes(res.scopes || {});
+      setScopeReasoning(res.reasoning || "Auto-scoped based on zero-trust policy.");
+      setNotice(`🤖 AI Auto-Scope identified ${Object.keys(res.scopes || {}).length} required file permissions!`);
+    } catch {
+      setNotice("Failed to auto-scope story.");
+    } finally {
+      setAutoScoping(false);
     }
   };
 
@@ -293,6 +391,12 @@ export default function AdminPanel() {
               onClick={() => setActiveTab("elevations")}
             >
               Elevations {elevations.filter((e) => e.status === "pending").length > 0 && `(${elevations.filter((e) => e.status === "pending").length})`}
+            </button>
+            <button
+              className={activeTab === "llm" ? "small" : "ghost small"}
+              onClick={() => setActiveTab("llm")}
+            >
+              🤖 LLM Setup
             </button>
             <button
               className={activeTab === "audit" ? "small" : "ghost small"}
@@ -518,19 +622,37 @@ export default function AdminPanel() {
                       Grant the narrowest file permissions that make this story completable. Every extra path is permanent exposure for the life of the branch.
                     </p>
                   </div>
-                  <span className="badge" style={{ fontSize: "12px", padding: "4px 8px" }}>
-                    Branch: {selected.feature_branch || "feature/" + selected.key.toLowerCase()}
-                  </span>
+                  <div style={{ textAlign: "right" }}>
+                    <span className="badge" style={{ fontSize: "12px", padding: "4px 8px" }}>
+                      Branch: {selected.feature_branch || "feature/" + selected.key.toLowerCase()}
+                    </span>
+                  </div>
                 </div>
 
-                <input
-                  placeholder="Filter repository paths..."
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  style={{ marginTop: "12px" }}
-                />
+                {scopeReasoning && (
+                  <div style={{ marginTop: "10px", padding: "10px 14px", background: "rgba(59, 130, 246, 0.08)", border: "1px solid rgba(59, 130, 246, 0.3)", borderRadius: "6px", fontSize: "13px" }}>
+                    <strong>🤖 AI Auto-Scope Analysis:</strong> {scopeReasoning}
+                  </div>
+                )}
 
-                <div className="scope-table">
+                <div style={{ display: "flex", gap: "10px", marginTop: "12px", alignItems: "center" }}>
+                  <input
+                    placeholder="Filter repository paths..."
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    style={{ flex: 1, margin: 0 }}
+                  />
+                  <button
+                    className="ghost small"
+                    disabled={autoScoping}
+                    onClick={handleAutoScope}
+                    style={{ whiteSpace: "nowrap", border: "1px solid var(--accent)", color: "var(--accent)" }}
+                  >
+                    {autoScoping ? "Analyzing Story..." : "🤖 Auto-Scope with AI"}
+                  </button>
+                </div>
+
+                <div className="scope-table" style={{ marginTop: "10px" }}>
                   {visible.length === 0 ? (
                     <div style={{ padding: "16px", textAlign: "center" }} className="muted">
                       No matching paths found in this repository.
@@ -569,26 +691,141 @@ export default function AdminPanel() {
 
                 <div className="sticky-actions">
                   <span className="muted">{grantedCount} paths granted in scope</span>
-                  <button
-                    onClick={async () => {
-                      const payload = Object.entries(scopes)
-                        .filter(([, level]) => !!level)
-                        .map(([path_glob, access_level]) => ({
-                          path_glob,
-                          access_level,
-                        }));
-                      await adminPut(`/stories/${selected.id}/scopes`, {
-                        scopes: payload,
-                      });
-                      setNotice("Scope saved! Developer sessions pick this up immediately.");
-                    }}
-                  >
-                    Save Scope
-                  </button>
+                  <div className="row-gap">
+                    <button
+                      className="ghost"
+                      disabled={autoScoping}
+                      onClick={handleAutoScope}
+                    >
+                      {autoScoping ? "Analyzing..." : "🤖 Auto-Scope with AI"}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const payload = Object.entries(scopes)
+                          .filter(([, level]) => !!level)
+                          .map(([path_glob, access_level]) => ({
+                            path_glob,
+                            access_level,
+                          }));
+                        await adminPut(`/stories/${selected.id}/scopes`, {
+                          scopes: payload,
+                        });
+                        setNotice("Scope saved! Developer sessions pick this up immediately.");
+                      }}
+                    >
+                      Save Scope
+                    </button>
+                  </div>
                 </div>
               </>
             )}
           </main>
+        </div>
+      )}
+
+      {activeTab === "llm" && (
+        <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto", overflowY: "auto" }}>
+          <h2>Application-Level LLM Configuration</h2>
+          <p className="muted">
+            Configure the internal intelligence engine (Local vLLM / Ollama or Cloud API) used for internal platform automation, such as <strong>Zero-Trust Auto-Scoping</strong> and triage.
+          </p>
+
+          <form onSubmit={handleSaveLlmConfig} style={{ marginTop: "20px", background: "var(--canvas)", border: "1px solid var(--border)", borderRadius: "8px", padding: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ margin: 0 }}>Model Provider</h3>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={llmIsActive}
+                  onChange={(e) => setLlmIsActive(e.target.checked)}
+                />
+                <span>Enable Internal LLM</span>
+              </label>
+            </div>
+
+            <label>Provider Type
+              <select
+                value={llmProvider}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setLlmProvider(val);
+                  if (val === "openai") {
+                    setLlmBaseUrl("https://api.openai.com/v1");
+                    setLlmModel("gpt-4o-mini");
+                  } else if (val === "anthropic") {
+                    setLlmBaseUrl("https://api.anthropic.com");
+                    setLlmModel("claude-3-5-haiku-20241022");
+                  } else if (val === "local") {
+                    setLlmBaseUrl("http://localhost:11434/v1");
+                    setLlmModel("qwen2.5-coder-32b-instruct");
+                  }
+                }}
+              >
+                <option value="openai">OpenAI (Official)</option>
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="local">Local / Self-Hosted (Ollama / vLLM / LM Studio)</option>
+                <option value="custom">Custom OpenAI-Compatible (Groq / OpenRouter / Together)</option>
+              </select>
+            </label>
+
+            <label>Base URL
+              <input
+                value={llmBaseUrl}
+                onChange={(e) => setLlmBaseUrl(e.target.value)}
+                placeholder="e.g. https://api.openai.com/v1 or http://localhost:11434/v1"
+                required
+              />
+            </label>
+
+            <label>Model Identifier
+              <input
+                value={llmModel}
+                onChange={(e) => setLlmModel(e.target.value)}
+                placeholder="e.g. gpt-4o-mini, claude-3-5-haiku-20241022, qwen2.5-coder-32b-instruct"
+                required
+              />
+            </label>
+
+            <label>API Key {hasApiKey && <span style={{ color: "var(--accent)", fontSize: "11px" }}>(Currently saved)</span>}
+              <input
+                type="password"
+                value={llmApiKey}
+                onChange={(e) => setLlmApiKey(e.target.value)}
+                placeholder={hasApiKey ? "Leave unchanged to keep current key" : "Paste API key (optional for local Ollama)"}
+                autoComplete="off"
+              />
+            </label>
+
+            {testResult && (
+              <div
+                style={{
+                  marginTop: "14px",
+                  padding: "10px 14px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  background: testResult.ok ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)",
+                  border: `1px solid ${testResult.ok ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                  color: testResult.ok ? "#22c55e" : "#ef4444",
+                }}
+              >
+                {testResult.ok ? "✅ " + testResult.message : "❌ " + (testResult.error || "Connection failed")}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="ghost"
+                disabled={testingLlm}
+                onClick={handleTestLlmConfig}
+              >
+                {testingLlm ? "Testing Connection..." : "Test Connection"}
+              </button>
+              <button type="submit" disabled={savingLlm}>
+                {savingLlm ? "Saving..." : "Save Configuration"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from app.config import settings
-from app.models import ACCESS_READ, ACCESS_WRITE, DevSession, Elevation, Grant, Repository, Story
+from app.models import ACCESS_READ, ACCESS_WRITE, AppLlmConfig, DevSession, Elevation, Grant, Repository, Story
 
 
 def _now() -> datetime:
@@ -31,6 +31,13 @@ class MemoryStore:
         self.elevations: dict[str, Elevation] = {}
         self.audit: list[dict] = []
         self.global_rules: dict[str, str] = {}
+        self.llm_config: AppLlmConfig = AppLlmConfig(
+            provider="openai",
+            base_url=settings.local_llm_base_url or "https://api.openai.com/v1",
+            api_key=settings.local_llm_api_key or "",
+            model=settings.local_llm_model or "gpt-4o-mini",
+            is_active=bool(settings.local_llm_base_url or settings.local_llm_api_key),
+        )
         self._seed()
 
     def _seed(self) -> None:
@@ -275,6 +282,13 @@ class MemoryStore:
 
     async def list_elevations(self) -> list[Elevation]:
         return list(self.elevations.values())
+
+    # --- llm config --------------------------------------------------------
+    async def get_llm_config(self) -> AppLlmConfig:
+        return self.llm_config
+
+    async def save_llm_config(self, config: AppLlmConfig) -> None:
+        self.llm_config = config
 
     # --- audit -------------------------------------------------------------
     async def last_audit_hash(self) -> str | None:
