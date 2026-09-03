@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -5,14 +6,25 @@ from fastapi.responses import JSONResponse
 from app.api import admin, ai, auth, cron, elevations, sessions, vfs, webhooks
 from app.config import settings
 from app.errors import AppError
+from app.store import store, PostgresStore
 
 API_PREFIX = "/api"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if isinstance(store, PostgresStore):
+        await store.connect()
+    yield
+    if isinstance(store, PostgresStore):
+        await store.disconnect()
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Zero-Trust Dev UI API",
         version="0.1.0",
+        lifespan=lifespan,
         # Never expose the schema in production: the route list is a map of the
         # system and the admin surface is not developer-visible.
         docs_url="/api/docs" if settings.app_env != "production" else None,
