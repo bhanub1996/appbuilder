@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-
   "builds": [
     {
       "src": "frontend/package.json",
@@ -18,18 +17,36 @@
     }
   ],
   "routes": [
-    { 
-      "src": "/api/(.*)", 
-      "dest": "/api/index.py", 
-      "headers": { 
-        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" 
-      } 
-    },
+    { "src": "/api/(.*)", "dest": "/api/index.py", "headers": { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" } },
+    { "src": "/workspace/(.*)", "dest": "/api/index.py" },
+    { "src": "/media/(.*)", "dest": "/api/index.py" },
+    { "src": "/static/(.*)", "dest": "/api/index.py" },
+    { "src": "/storefront/(.*)", "dest": "/api/index.py" },
+    { "src": "/health", "dest": "/api/index.py" },
+    { "src": "/robots.txt", "dest": "/api/index.py" },
+    { "src": "/sitemap.xml", "dest": "/api/index.py" },
+    { "src": "/favicon.svg", "dest": "/api/index.py" },
+    { "src": "/set-lang", "dest": "/api/index.py" },
+    { "src": "/admin", "dest": "/api/index.py" },
+    { "src": "/shop", "dest": "/api/index.py" },
+    { "src": "/cart", "dest": "/api/index.py" },
+    { "src": "/checkout", "dest": "/api/index.py" },
+    { "src": "/thank-you", "dest": "/api/index.py" },
+    { "src": "/account", "dest": "/api/index.py" },
+    { "src": "/wishlist", "dest": "/api/index.py" },
+    { "src": "/quick-order", "dest": "/api/index.py" },
+    { "src": "/our-journey", "dest": "/api/index.py" },
+    { "src": "/about", "dest": "/api/index.py" },
+    { "src": "/contact", "dest": "/api/index.py" },
+    { "src": "/blog", "dest": "/api/index.py" },
+    { "src": "/blog/(.*)", "dest": "/api/index.py" },
+    { "src": "/product/(.*)", "dest": "/api/index.py" },
+    { "src": "/pages/(.*)", "dest": "/api/index.py" },
+    { "src": "/policies/(.*)", "dest": "/api/index.py" },
+    { "src": "/invoice/(.*)", "dest": "/api/index.py" },
+    { "src": "/lp/(.*)", "dest": "/api/index.py" },
+    { "src": "/go/(.*)", "dest": "/api/index.py" },
     { "src": "/(.*)", "dest": "/frontend/$1", "check": true },
     { "src": "/(.*)", "dest": "/frontend/index.html" }
-  ],
-  "crons": [
-    { "path": "/api/internal/cron/expire-elevations", "schedule": "0 0 * * *" },
-    { "path": "/api/internal/cron/reconcile-index", "schedule": "0 2 * * *" }
   ]
 }
