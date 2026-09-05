@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/**/*.py": {
+      "includeFiles": "backend/**"
+    }
+  },
+  "crons": [
+    { "path": "/api/internal/cron/expire-elevations", "schedule": "0 0 * * *" },
+    { "path": "/api/internal/cron/reconcile-index", "schedule": "0 2 * * *" }
+  ]
+}
