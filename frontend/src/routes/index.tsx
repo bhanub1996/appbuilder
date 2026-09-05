@@ -70,12 +70,17 @@ function SignInPage() {
     }
   }, [ready, user, navigate]);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const submittedEmail = (formData.get("email") || email) as string;
+
+    if (!submittedEmail) return;
+
     setBusy(true);
     setError(null);
     try {
-      const u = await signIn(email);
+      const u = await signIn(submittedEmail);
       await navigate({ to: u.role === "admin" ? "/admin" : "/work" });
     } catch {
       setError("Sign-in failed. Check the address and try again.");
@@ -118,6 +123,7 @@ function SignInPage() {
               </Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 required
                 autoComplete="email"
@@ -133,7 +139,7 @@ function SignInPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={busy || !email}
+              disabled={busy}
             >
               {busy && <Loader2 className="size-4 animate-spin" />}
               {busy ? "Opening session…" : "Continue"}
