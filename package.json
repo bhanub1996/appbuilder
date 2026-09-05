@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "echo 'Run: (1) npm --workspace frontend run dev  (2) cd backend && uvicorn main:app --reload'",
     "dev:web": "npm --workspace frontend run dev",
-    "build": "npm --workspace frontend run build",
+    "build": "NITRO_PRESET=vercel npm --workspace frontend run build && mv frontend/.vercel .vercel",
     "lint": "npm --workspace frontend run lint",
     "test:api": "cd backend && python -m pytest -q"
   },
